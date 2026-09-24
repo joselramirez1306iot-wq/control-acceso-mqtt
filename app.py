@@ -5,20 +5,30 @@ import requests
 import ssl
 import paho.mqtt.client as mqtt
 
+
+# =========================================================
+# FLASK
+# =========================================================
+
 app = Flask(__name__)
 
 
 # =========================================================
-# CONFIGURACIÓN
+# CONFIGURACIÓN EMQX TABLES
 # =========================================================
 
 TABLES_URL = os.environ.get(
     "TABLES_URL",
-    "https://if56e60e.aka.aws.cloud.emqxtables.com/v1/sql"
+    "https://if56e60e.aka.aws.cloud.emqxTables.com/v1/sql"
 )
 
 TABLES_USER = os.environ.get("TABLES_USER")
 TABLES_PASSWORD = os.environ.get("TABLES_PASSWORD")
+
+
+# =========================================================
+# CONFIGURACIÓN MQTT
+# =========================================================
 
 MQTT_HOST = os.environ.get(
     "MQTT_HOST",
@@ -30,8 +40,12 @@ MQTT_PORT = int(
 )
 
 MQTT_USER = os.environ.get("MQTT_USER")
-
 MQTT_PASSWORD = os.environ.get("MQTT_PASSWORD")
+
+
+# =========================================================
+# TOPICS
+# =========================================================
 
 TOPIC_RESPUESTA = "control/acceso/respuesta"
 
@@ -55,12 +69,17 @@ mqtt_client.tls_set(
 
 
 # =========================================================
-# CONECTAR MQTT
+# CONEXIÓN MQTT
 # =========================================================
 
 def conectar_mqtt():
 
-    print("Conectando a MQTT...")
+    print("", flush=True)
+    print("===================================", flush=True)
+    print("CONTROL DE ACCESO MQTT", flush=True)
+    print("===================================", flush=True)
+
+    print("Conectando a MQTT...", flush=True)
 
     try:
 
@@ -72,14 +91,24 @@ def conectar_mqtt():
 
         mqtt_client.loop_start()
 
-        print("MQTT conectado correctamente")
+        print(
+            "MQTT conectado correctamente",
+            flush=True
+        )
 
         return True
 
     except Exception as e:
 
-        print("ERROR MQTT:")
-        print(e)
+        print(
+            "ERROR MQTT:",
+            flush=True
+        )
+
+        print(
+            str(e),
+            flush=True
+        )
 
         return False
 
@@ -90,15 +119,23 @@ def conectar_mqtt():
 
 def consultar_cliente(registro):
 
-    sql = f"""
-    SELECT registro
-    FROM public.clientes
-    WHERE registro = '{registro}'
-    AND activo = true
-    """
+    print("", flush=True)
+    print("===================================", flush=True)
+    print("CONSULTANDO EMQX TABLES", flush=True)
+    print("Registro:", registro, flush=True)
+    print("===================================", flush=True)
 
-    print("SQL:")
-    print(sql)
+    # El registro ya fue validado como exactamente
+    # 4 dígitos antes de llegar aquí.
+    sql = f"""
+SELECT registro
+FROM public.clientes
+WHERE registro = '{registro}'
+AND activo = true
+"""
+
+    print("SQL:", flush=True)
+    print(sql, flush=True)
 
     try:
 
@@ -118,23 +155,83 @@ def consultar_cliente(registro):
             timeout=15
         )
 
-        print("HTTP Tables:", respuesta.status_code)
-        print("Respuesta Tables:")
-        print(respuesta.text)
+        print(
+            "HTTP Tables:",
+            respuesta.status_code,
+            flush=True
+        )
+
+        print(
+            "Respuesta Tables:",
+            flush=True
+        )
+
+        print(
+            respuesta.text,
+            flush=True
+        )
+
+        # ---------------------------------------------
+        # ERROR HTTP
+        # ---------------------------------------------
 
         if respuesta.status_code != 200:
 
-            print("ERROR CONSULTANDO EMQX TABLES")
+            print(
+                "ERROR: EMQX Tables respondió con error",
+                flush=True
+            )
 
             return None
 
-        datos = respuesta.json()
+        # ---------------------------------------------
+        # CONVERTIR RESPUESTA JSON
+        # ---------------------------------------------
 
-        output = datos.get("output", [])
+        try:
+
+            datos = respuesta.json()
+
+        except Exception as e:
+
+            print(
+                "ERROR CONVIRTIENDO RESPUESTA A JSON:",
+                flush=True
+            )
+
+            print(
+                str(e),
+                flush=True
+            )
+
+            return None
+
+        print(
+            "JSON recibido correctamente",
+            flush=True
+        )
+
+        # ---------------------------------------------
+        # OBTENER OUTPUT
+        # ---------------------------------------------
+
+        output = datos.get(
+            "output",
+            []
+        )
 
         if not output:
 
+            print(
+                "No existe output en la respuesta",
+                flush=True
+            )
+
             return False
+
+        # ---------------------------------------------
+        # OBTENER RECORDS
+        # ---------------------------------------------
 
         records = output[0].get(
             "records",
@@ -146,16 +243,47 @@ def consultar_cliente(registro):
             []
         )
 
+        print(
+            "Cantidad de filas encontradas:",
+            len(rows),
+            flush=True
+        )
+
+        # ---------------------------------------------
+        # CLIENTE ENCONTRADO
+        # ---------------------------------------------
+
         if len(rows) > 0:
 
+            print(
+                "CLIENTE EXISTE",
+                flush=True
+            )
+
             return True
+
+        # ---------------------------------------------
+        # CLIENTE NO ENCONTRADO
+        # ---------------------------------------------
+
+        print(
+            "CLIENTE NO EXISTE",
+            flush=True
+        )
 
         return False
 
     except Exception as e:
 
-        print("ERROR TABLES:")
-        print(e)
+        print(
+            "ERROR CONSULTANDO EMQX TABLES:",
+            flush=True
+        )
+
+        print(
+            str(e),
+            flush=True
+        )
 
         return None
 
@@ -178,11 +306,22 @@ def publicar_respuesta(
         mensaje
     )
 
-    print("===================================")
-    print("PUBLICANDO RESPUESTA MQTT")
-    print("Topic:", TOPIC_RESPUESTA)
-    print("Payload:", payload)
-    print("===================================")
+    print("", flush=True)
+    print("===================================", flush=True)
+    print("PUBLICANDO RESPUESTA MQTT", flush=True)
+    print("===================================", flush=True)
+
+    print(
+        "Topic:",
+        TOPIC_RESPUESTA,
+        flush=True
+    )
+
+    print(
+        "Payload:",
+        payload,
+        flush=True
+    )
 
     try:
 
@@ -194,23 +333,36 @@ def publicar_respuesta(
 
         resultado_mqtt.wait_for_publish()
 
-        print("RESPUESTA MQTT PUBLICADA")
+        print(
+            "RESPUESTA MQTT PUBLICADA",
+            flush=True
+        )
 
         return True
 
     except Exception as e:
 
-        print("ERROR PUBLICANDO MQTT:")
-        print(e)
+        print(
+            "ERROR PUBLICANDO MQTT:",
+            flush=True
+        )
+
+        print(
+            str(e),
+            flush=True
+        )
 
         return False
 
 
 # =========================================================
-# RUTA PRINCIPAL
+# PÁGINA PRINCIPAL
 # =========================================================
 
-@app.route("/", methods=["GET"])
+@app.route(
+    "/",
+    methods=["GET"]
+)
 def inicio():
 
     return jsonify({
@@ -229,105 +381,154 @@ def inicio():
 )
 def verificar():
 
-    print("")
-    print("===================================")
-    print("PETICION HTTP RECIBIDA")
-    print("===================================")
+    print("", flush=True)
+    print("===================================", flush=True)
+    print("PETICIÓN HTTP RECIBIDA", flush=True)
+    print("===================================", flush=True)
 
-    print("Headers:")
-    print(dict(request.headers))
+    # ---------------------------------------------
+    # MOSTRAR HEADERS
+    # ---------------------------------------------
 
-    print("Body RAW:")
-    print(request.get_data(as_text=True))
+    print(
+        "Headers:",
+        flush=True
+    )
+
+    print(
+        dict(request.headers),
+        flush=True
+    )
+
+    # ---------------------------------------------
+    # OBTENER BODY
+    # ---------------------------------------------
+
+    body_raw = request.get_data(
+        as_text=True
+    )
+
+    print(
+        "Body RAW:",
+        flush=True
+    )
+
+    print(
+        body_raw,
+        flush=True
+    )
+
+    # ---------------------------------------------
+    # LEER JSON
+    # ---------------------------------------------
 
     datos = request.get_json(
         silent=True
     )
 
-    print("JSON:")
-    print(datos)
+    print(
+        "JSON:",
+        flush=True
+    )
+
+    print(
+        datos,
+        flush=True
+    )
+
+    # ---------------------------------------------
+    # VALIDAR JSON
+    # ---------------------------------------------
 
     if not datos:
 
-        print("NO SE RECIBIO JSON")
+        print(
+            "ERROR: NO SE RECIBIÓ JSON",
+            flush=True
+        )
 
         return jsonify({
             "estado": "ERROR",
             "mensaje": "No se recibió JSON"
         }), 400
 
-    registro = datos.get(
-        "registro"
-    )
-
-    print("REGISTRO RECIBIDO:")
-    print(registro)
-
-    return jsonify({
-        "estado": "OK",
-        "registro": registro
-    })
-
-    datos = request.get_json(
-        silent=True
-    )
-
-    if not datos:
-
-        return jsonify({
-            "error": "No se recibió JSON"
-        }), 400
+    # ---------------------------------------------
+    # OBTENER REGISTRO
+    # ---------------------------------------------
 
     registro = datos.get(
         "registro"
     )
 
-    if not registro:
+    print(
+        "Registro recibido:",
+        registro,
+        flush=True
+    )
+
+    # ---------------------------------------------
+    # VALIDAR REGISTRO
+    # ---------------------------------------------
+
+    if registro is None:
+
+        print(
+            "ERROR: NO SE RECIBIÓ REGISTRO",
+            flush=True
+        )
 
         return jsonify({
-            "error": "No se recibió registro"
+            "estado": "ERROR",
+            "mensaje": "No se recibió registro"
         }), 400
 
     registro = str(
         registro
     )
 
-    # -----------------------------------------
-    # VALIDAR REGISTRO
-    # -----------------------------------------
+    # ---------------------------------------------
+    # DEBE SER EXACTAMENTE 4 DÍGITOS
+    # ---------------------------------------------
 
     if (
         len(registro) != 4
         or not registro.isdigit()
     ):
 
+        print(
+            "ERROR: REGISTRO INVÁLIDO",
+            flush=True
+        )
+
         return jsonify({
-            "error":
-            "El registro debe tener exactamente 4 dígitos"
+            "estado": "ERROR",
+            "mensaje":
+                "El registro debe tener exactamente 4 dígitos"
         }), 400
 
-    print("")
-    print("===================================")
-    print("SOLICITUD DE VERIFICACIÓN")
-    print("Registro:", registro)
-    print("===================================")
+    print(
+        "Registro válido:",
+        registro,
+        flush=True
+    )
 
-    # -----------------------------------------
-    # CONSULTAR TABLES
-    # -----------------------------------------
+    # ---------------------------------------------
+    # CONSULTAR BASE DE DATOS
+    # ---------------------------------------------
 
     existe = consultar_cliente(
         registro
     )
 
-    # -----------------------------------------
+    # ---------------------------------------------
     # ERROR DE CONSULTA
-    # -----------------------------------------
+    # ---------------------------------------------
 
     if existe is None:
 
         print(
-            "NO SE PUDO CONSULTAR LA BASE DE DATOS"
+            "ERROR: NO SE PUDO CONSULTAR EMQX TABLES",
+            flush=True
         )
 
         return jsonify({
@@ -335,40 +536,44 @@ def verificar():
             "registro": registro
         }), 500
 
-    # -----------------------------------------
-    # CLIENTE EXISTE
-    # -----------------------------------------
+    # ---------------------------------------------
+    # DETERMINAR RESULTADO
+    # ---------------------------------------------
 
     if existe:
 
         resultado = "EXISTE"
 
-        print(
-            "CLIENTE ENCONTRADO"
-        )
-
-    # -----------------------------------------
-    # CLIENTE NO EXISTE
-    # -----------------------------------------
-
     else:
 
         resultado = "NO_EXISTE"
 
-        print(
-            "CLIENTE NO ENCONTRADO"
-        )
+    print("", flush=True)
+    print("===================================", flush=True)
+    print("RESULTADO FINAL", flush=True)
+    print("Registro:", registro, flush=True)
+    print("Resultado:", resultado, flush=True)
+    print("===================================", flush=True)
 
-    # -----------------------------------------
-    # PUBLICAR MQTT
-    # -----------------------------------------
+    # ---------------------------------------------
+    # PUBLICAR POR MQTT
+    # ---------------------------------------------
 
     publicado = publicar_respuesta(
         registro,
         resultado
     )
 
+    # ---------------------------------------------
+    # ERROR MQTT
+    # ---------------------------------------------
+
     if not publicado:
+
+        print(
+            "ERROR: NO SE PUDO PUBLICAR MQTT",
+            flush=True
+        )
 
         return jsonify({
             "estado": "ERROR_MQTT",
@@ -376,27 +581,27 @@ def verificar():
             "resultado": resultado
         }), 500
 
+    # ---------------------------------------------
+    # RESPUESTA HTTP A EMQX
+    # ---------------------------------------------
+
     print(
-        "PROCESO COMPLETADO"
+        "PROCESO COMPLETADO CORRECTAMENTE",
+        flush=True
     )
 
     return jsonify({
         "estado": "OK",
         "registro": registro,
         "resultado": resultado
-    })
+    }), 200
 
 
 # =========================================================
-# INICIO DEL SERVIDOR
+# INICIAR SERVIDOR
 # =========================================================
 
 if __name__ == "__main__":
-
-    print("")
-    print("===================================")
-    print("CONTROL DE ACCESO MQTT")
-    print("===================================")
 
     conectar_mqtt()
 
@@ -405,6 +610,12 @@ if __name__ == "__main__":
             "PORT",
             "10000"
         )
+    )
+
+    print(
+        "Iniciando Flask en puerto:",
+        puerto,
+        flush=True
     )
 
     app.run(
