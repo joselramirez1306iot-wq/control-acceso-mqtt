@@ -229,6 +229,45 @@ def inicio():
 )
 def verificar():
 
+    print("")
+    print("===================================")
+    print("PETICION HTTP RECIBIDA")
+    print("===================================")
+
+    print("Headers:")
+    print(dict(request.headers))
+
+    print("Body RAW:")
+    print(request.get_data(as_text=True))
+
+    datos = request.get_json(
+        silent=True
+    )
+
+    print("JSON:")
+    print(datos)
+
+    if not datos:
+
+        print("NO SE RECIBIO JSON")
+
+        return jsonify({
+            "estado": "ERROR",
+            "mensaje": "No se recibió JSON"
+        }), 400
+
+    registro = datos.get(
+        "registro"
+    )
+
+    print("REGISTRO RECIBIDO:")
+    print(registro)
+
+    return jsonify({
+        "estado": "OK",
+        "registro": registro
+    })
+
     datos = request.get_json(
         silent=True
     )
