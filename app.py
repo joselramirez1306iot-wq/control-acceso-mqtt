@@ -1,4 +1,3 @@
-```python
 from flask import Flask, request, jsonify
 import os
 import json
@@ -1140,5 +1139,13 @@ if __name__ == "__main__":
 
     print(
         "==========================================",
-        flush=Tr
-```
+        flush=True
+    )
+
+    app.run(
+
+        host="0.0.0.0",
+
+        port=puerto
+
+    )
